@@ -17,9 +17,10 @@ class Solver(nn.Module):
                             (9.00,4.80),(5.00,8.50),(7.00,1.50),(2.50,7.50)   ))
         self.car = torch.tensor([0.57/2, 0.7/2])
         #self.car = np.random.rand(2) * 10
+        self.point_num = 99
         self.car_width = 0.57
         self.car_length = 0.7
-        self.path =  nn.Parameter(path,  requires_grad=True) if path is not None else nn.Parameter(torch.tensor(np.random.rand(99,2).astype('float32') * 10,  requires_grad=True))
+        self.path =  nn.Parameter(path,  requires_grad=True) if path is not None else nn.Parameter(torch.tensor(np.random.rand(self.point_num,2).astype('float32') * 10,  requires_grad=True))
     
     def rectangle(self, p):
         r = torch.tensor([[p[0]-self.car_width/2, p[1]-self.car_length/2], 
@@ -53,35 +54,41 @@ class Solver(nn.Module):
 
 
     def collision(self, path=None):
-        #r = self.rectangle()
-        #path = torch.cat([self.car[np.newaxis,:], torch.clamp(self.path, 0, 10)], 0)
-        #path = torch.sigmoid(self.path) * 10
+        # r = self.rectangle()
+        # path = torch.cat([self.car[np.newaxis,:], torch.clamp(self.path, 0, 10)], 0)
+        # path = torch.sigmoid(self.path) * 10
         path = self.path if path is None else path
-        #path =  torch.clamp(self.path, 0, 10)
-        path = torch.cat([self.car[np.newaxis,:], path], 0)
+        # path =  torch.clamp(self.path, 0, 10)
+        path = torch.cat([self.car[np.newaxis, :], path], 0)
         p = path[0:-1]
         r = path[1:] - path[0:-1]
-        colllist = []
-        
+        sample=path[1:]
+        sample_num=30
+        for i in range(sample_num-1):
+            sample_temp = p + r * (i+1) / sample_num
+            sample=torch.cat((sample, sample_temp),dim=0)
+
+        coll = 0
+
         for i in range(len(self.obstacles)):
-            #print(linem, lineb)
+            # print(linem, lineb)
             ob = self.obstacles[i]
             sob = ob.shape[0]
-            q = ob[:,:]
+            q = ob[:, :]
             s = ob[list(range(1, sob)) + [0]] - q
-            qp = (q[np.newaxis,:,:]-p[:,np.newaxis,:])
-            t = (qp[:,:,0] * s[np.newaxis,:,1] - qp[:,:,1] * s[np.newaxis,:,0]) / ( torch.transpose((r[np.newaxis,:,0] * s[:,np.newaxis,1] - r[np.newaxis,:,1] * s[:,np.newaxis,0]), 1, 0) + 1e-8)
-            u = (qp[:,:,0] * r[:,np.newaxis,1] - qp[:,:,1] * r[:,np.newaxis,0]) / ( torch.transpose((r[np.newaxis,:,0] * s[:,np.newaxis,1] - r[np.newaxis,:,1] * s[:,np.newaxis,0]), 1, 0) + 1e-8)
-            #print(torch.sum((t>0)& (t <1)), torch.sum((u>0)& (u<1)))
-            #collt = 1 - (torch.sign(t) * torch.sign(t - 1/2) + 1) / 2
-            #collu = 1 - (torch.sign(u) * torch.sign(u - 1/2) + 1) / 2
-            collt = 1 - (t/torch.abs(t) * (t-1)/torch.abs(t-1) + 1) / 2
-            collu = 1 - (u/torch.abs(u) * (u-1)/torch.abs(u-1) + 1)  / 2
-            coll = collt * collu
-            colllist.append(coll)
-        
-        colllist = torch.cat(colllist, 1)
-        return torch.sum(colllist) #torch.sum(coll * (1 - coll) ) #- coll * torch.log(coll+1e-11))
+            di = torch.cat((s[:, 1][:, np.newaxis], -s[:, 0][:, np.newaxis]), 1)
+            di_norm = torch.norm(di, dim=1, keepdim=True)
+            di = di / di_norm
+
+            sample_q=-(q[np.newaxis, :, :] - sample[:, np.newaxis, :])
+            #t=sample_q*di[np.newaxis, :, :].repeat(sample_num*99,1,1)
+            temp=torch.relu(torch.sum((sample_q*di[np.newaxis, :, :].repeat(sample_num*self.point_num,1,1)),dim=2))
+            co=torch.prod(temp,dim=1)
+            coll += torch.sum(co)
+
+
+
+        return coll
     
     def lpath(self):
         #path = np.reshape(path, (-1,2))
@@ -114,7 +121,7 @@ gclip = 1
 
 for i in range(15000):
     #print(solver.collision())
-    y = solver.collision() + solver.lpath() + 1e5 * solver.clean() 
+    y = 1e6*solver.collision() + solver.lpath() + 1e5 * solver.clean() +1e5*(torch.sum(torch.pow(torch.relu(-solver.path[:, 0]),2))+torch.sum(torch.pow(torch.relu(-solver.path[:, 1]),2))+torch.sum(torch.pow(torch.relu(solver.path[:, 0]-10),2))+torch.sum(torch.pow(torch.relu(-solver.path[:, 1]-10),2)))
     if i%100 == 0:
         print(i, y.item())
     
