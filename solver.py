@@ -56,7 +56,7 @@ class Solver(nn.Module):
         super(Solver, self).__init__()
         self.obstacles = [torch.tensor(  ((1.23,3.47),(1.75,4.00),(2.10,3.63),(1.58,2.30),(1.40,2.67)) ),  
                           torch.tensor(  ((4.65,5.98),(4.00,6.48),(4.52,7.68),(5.06,7.73),(5.90,6.95)) ),  
-                          torch.tensor(  ((6.78,3.40),(7.78,3.76),(7.78,5.10)) ), 
+                          torch.tensor(  ((6.78,3.40),(7.78,5.10),(7.78,3.76)) ),
                           torch.tensor(  ((4.00,3.00),(4.35,3.35),(4.80,3.45),(4.37,2.75)))  ]
         self.starting = starting
         self.ending = ending
@@ -129,7 +129,7 @@ class Solver(nn.Module):
             sample_q=-(q[np.newaxis, :, :] - sample[:, np.newaxis, :])
             #t=sample_q*di[np.newaxis, :, :].repeat(sample_num*99,1,1)
             #print(sample_q.shape, di.shape)
-            temp=torch.relu(torch.sum((sample_q*di[np.newaxis, :, :].repeat(sample_num*self.point_num,1,1)),dim=2))
+            temp=torch.relu(torch.sum((sample_q*di[np.newaxis, :, :].repeat(sample_num*self.point_num,1,1)),dim=2)+0.05)
             co=torch.prod(temp,dim=1)
             coll += torch.sum(co)
         return coll
@@ -156,11 +156,11 @@ path = np.zeros((0,2))
 for i in range(len(rubbish) - 1):
     solver = Solver(points[i], points[i+1])
     opt2 =  torch.optim.Adam(solver.parameters(), lr=0.5)
-    if i==9: #solver.collision().item() > 0:
+    if solver.collision_fxy().item() > 0:
         for ite in range(2500):
-            y = solver.lpath() + 1e6 * solver.collision_fxy()
+            y = solver.lpath() + 1e3 * solver.collision_fxy()
             if ite%100 == 0:
-                print(ite, y.item())
+                print(ite, y.item(), 1e3 * solver.collision_fxy().item())
             opt2.zero_grad()
             y.backward()
             opt2.step()
