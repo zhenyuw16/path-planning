@@ -156,8 +156,8 @@ path = np.zeros((0,2))
 for i in range(len(rubbish) - 1):
     solver = Solver(points[i], points[i+1])
     opt2 =  torch.optim.Adam(solver.parameters(), lr=0.5)
-    if i==9: #solver.collision().item() > 0:
-        for ite in range(15000):
+    if solver.collision_fxy().item() > 0:
+        for ite in range(2500):
             y = solver.lpath() + 1e3 * solver.collision_fxy()
             if ite%100 == 0:
                 print(ite, y.item(), 1e3 * solver.collision_fxy().item())
