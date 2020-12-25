@@ -8,7 +8,7 @@ import torch.nn as nn
 from python_tsp.exact import solve_tsp_dynamic_programming
 
 
-def visualize(path):
+def visualize(path, ind=None):
     obstacles = [np.array(  ((1.23,3.47),(1.75,4.00),(2.10,3.63),(1.58,2.30),(1.40,2.67)) ),  
                           np.array(  ((4.65,5.98),(4.00,6.48),(4.52,7.68),(5.06,7.73),(5.90,6.95)) ),  
                           np.array(  ((6.78,3.40),(7.78,3.76),(7.78,5.10)) ), 
@@ -45,14 +45,60 @@ def visualize(path):
     pp[:,1] = 10 - pp[:,1]
     
     for i in range(len(pp)):
-        cv2.circle(im, (int(pp[i][0]*100), int(pp[i][1]*100)), 3, 200, -1)
+        if ind is not None and i in ind:
+            cv2.circle(im, (int(pp[i][0]*100), int(pp[i][1]*100)), 20, 200, -1)
+        else:
+            cv2.circle(im, (int(pp[i][0]*100), int(pp[i][1]*100)), 3, 200, -1)
+        
 
     cv2.polylines(im, np.array([(pp*100)]).astype('int'), False, 128, 1)
     return im
 
 
+def theta(line1, line2):
+    k = np.dot(line1, line2)/np.sqrt(np.sum(line1**2))/np.sqrt(np.sum(line2**2))
+    k = min(k, 1)
+    k = max(k, -1)
+    return np.arccos(k)
+
+
+def theta_adjust(path):
+    ss = path.shape[0]
+    ind = []
+    for i in range(1, ss-1):
+        if theta(path[i]-path[i-1], path[i+1]-path[i]) > 0.2*np.pi:
+            ind.append(i)
+    mpath = []
+    for i in ind:
+        line = path[i+1]-path[i]
+        lineb = path[i]-path[i-1]
+        direction = lineb[0] * line[1] - lineb[1] * line[0]
+        direction = direction/np.abs(direction)
+        thr = 100
+        impath = []
+        point = path[i]
+        while thr > 0.2*np.pi:
+            linep = np.array([lineb[0]*np.cos(direction*0.2*np.pi) + lineb[1]*np.sin(direction*0.2*np.pi), -lineb[0]*np.sin(direction*0.2*np.pi) + lineb[1]*np.cos(direction*0.2*np.pi)])
+            linep = linep/np.sqrt(np.sum(linep**2))
+            point = point + 0.05*linep
+            impath.append(point)
+            linep2 = path[i+1] - point
+            thr = theta(linep, linep2)
+            #print(thr)
+            lineb = linep
+        mpath.append(impath)
+    all_path = []
+    j = 0
+    for i in range(ss):
+        all_path.append(path[i])
+        if i in ind:
+            all_path = all_path + mpath[j]
+            j = j + 1
+    return np.array(all_path)
+
+
 class Solver(nn.Module):
-    def __init__(self, starting, ending):
+    def __init__(self, starting, ending, point_num):
         super(Solver, self).__init__()
         self.obstacles = [torch.tensor(  ((1.23,3.47),(1.75,4.00),(2.10,3.63),(1.58,2.30),(1.40,2.67)) ),  
                           torch.tensor(  ((4.65,5.98),(4.00,6.48),(4.52,7.68),(5.06,7.73),(5.90,6.95)) ),  
@@ -62,7 +108,7 @@ class Solver(nn.Module):
         self.ending = ending
 
         line = ending - starting
-        self.point_num = 7
+        self.point_num = point_num
         path = np.zeros((self.point_num,2))
         for i in range(1,self.point_num+1):
             path[i-1,:] = starting + i/self.point_num * line
@@ -129,7 +175,7 @@ class Solver(nn.Module):
             sample_q=-(q[np.newaxis, :, :] - sample[:, np.newaxis, :])
             #t=sample_q*di[np.newaxis, :, :].repeat(sample_num*99,1,1)
             #print(sample_q.shape, di.shape)
-            temp=torch.relu(torch.sum((sample_q*di[np.newaxis, :, :].repeat(sample_num*self.point_num,1,1)),dim=2)+0.05)
+            temp=torch.relu(torch.sum((sample_q*di[np.newaxis, :, :].repeat(sample_num*self.point_num,1,1)),dim=2)+0.1)
             co=torch.prod(temp,dim=1)
             coll += torch.sum(co)
         return coll
@@ -151,27 +197,45 @@ dis = rubbish[:,np.newaxis,:] - rubbish[np.newaxis,:,:]
 dis = np.sqrt(np.sum(dis**2, 2))
 permutation, distance = solve_tsp_dynamic_programming(dis)
 points = rubbish[np.array(permutation)]
+
+
+
 path = np.zeros((0,2))
 
 for i in range(len(rubbish) - 1):
-    solver = Solver(points[i], points[i+1])
-    opt2 =  torch.optim.Adam(solver.parameters(), lr=0.5)
-    if solver.collision_fxy().item() > 0:
-        for ite in range(2500):
+    o_solver = Solver(points[i], points[i+1], 2)
+    if o_solver.collision_fxy().item() > 0:
+        solver = Solver(points[i], points[i+1], 3)
+        opt2 =  torch.optim.Adam(solver.parameters(), lr=0.5)
+        ite = 0
+        while True:
             y = solver.lpath() + 1e3 * solver.collision_fxy()
             if ite%100 == 0:
                 print(ite, y.item(), 1e3 * solver.collision_fxy().item())
             opt2.zero_grad()
             y.backward()
             opt2.step()
+            ite = ite + 1
             if (ite+1)%1000 == 0:
                 opt2.param_groups[0]['lr'] *= 0.5
-
-
-    pp = solver.path.detach().numpy()
+            if ite > 2501 and solver.collision_fxy().item() == 0:
+                break
+        pp = solver.path.detach().numpy()
+    else:
+        pp = o_solver.path.detach().numpy()
+    
     path = np.concatenate([path, points[i][np.newaxis,:], pp])
 
 path = np.concatenate([path, points[-1][np.newaxis,:]])
-print(path.shape)
-im = visualize(path)
+
+
+all_path = theta_adjust(path)
+print(all_path.shape)
+im = visualize(all_path)
+
+all_dis = np.sum(all_path**2, 1)
+all_dis = np.sqrt(all_dis)
+all_dis = np.sum(all_dis)
+print(all_dis)
+
 cv2.imwrite('1.jpg', im)

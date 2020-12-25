@@ -99,7 +99,7 @@ def solve_tsp_dynamic_programming(
     @lru_cache(maxsize=maxsize)
     def dist(ni: int, N: frozenset) -> float:
         if not N:
-            return distance_matrix[ni, 0]
+            return 0 #distance_matrix[ni, 0]
 
         # Store the costs in the form (nj, dist(nj, N))
         costs = [
