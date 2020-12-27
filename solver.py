@@ -192,7 +192,7 @@ rubbish = np.array(((0.57 / 2, 0.7 / 2), (0.40, 3.00), (2.90, 2.20), (1.10, 6.50
                     (9.00, 4.80), (5.00, 8.50), (7.00, 1.50), (2.50, 7.50)))
 
 #dis = rubbish[:, np.newaxis, :] - rubbish[np.newaxis, :, :]
-dis = np.sqrt(np.sum(dis ** 2, 2))
+#dis = np.sqrt(np.sum(dis ** 2, 2))
 dis = np.array((  (0,2.6525,3.2032,6.2038,5.3525,8.4074,6.6302,10.0163,5.0865,7.8446,8.0364,9.8459,9.4311,6.8128,7.4854),
                   (0,0     ,2.6992,3.5693,3.2016,5.9034,5.259 ,8.277,5.2561,7.64,6.3978,10.4647,7.1701,6.8737,4.9659),
                   (0,0,0,4.6615,2.8,6.1008,3.4713,6.8768,2.6,4.9163,4.9041,7.6729,6.8632,4.1593,5.3153),
@@ -220,10 +220,12 @@ for i in range(len(rubbish) - 1):
         solver = Solver(points[i], points[i + 1], 3)
         opt2 = torch.optim.Adam(solver.parameters(), lr=0.5)
         ite = 0
+        Loss_list = []
         while True:
             y = solver.lpath() + 1e3 * solver.collision_fxy()
             if ite % 100 == 0:
                 print(ite, y.item(), 1e3 * solver.collision_fxy().item())
+            Loss_list.append(y.item())
             opt2.zero_grad()
             y.backward()
             opt2.step()
@@ -233,6 +235,11 @@ for i in range(len(rubbish) - 1):
             if ite > 2501 and solver.collision_fxy().item() == 0:
                 break
         pp = solver.path.detach().numpy()
+        x00 = range(0, len(Loss_list))
+        plt.plot(x00, Loss_list)
+        plt.xlabel('step')
+        plt.ylabel('loss')
+        plt.savefig("loss"+str(i)+".jpg")
     else:
         pp = o_solver.path.detach().numpy()
 
@@ -243,7 +250,7 @@ path = np.concatenate([path, points[-1][np.newaxis, :]])
 all_path = theta_adjust(path)
 
 delta_path = all_path[1:]-all_path[0:-1]
-
+print(all_path)
 print(all_path.shape)
 im = visualize(all_path)
 
