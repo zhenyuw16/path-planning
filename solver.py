@@ -245,3 +245,4 @@ all_dis = np.sum(all_dis)
 print(all_dis)
 
 cv2.imwrite('1.jpg', im)
+np.savetxt('result.txt',all_path)
