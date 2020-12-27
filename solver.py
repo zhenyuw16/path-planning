@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-import scipy.optimize as sco
 import torch
 import torch.nn as nn
 import scipy.io as scio
