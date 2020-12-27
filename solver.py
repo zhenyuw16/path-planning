@@ -4,6 +4,7 @@ import cv2
 import scipy.optimize as sco
 import torch
 import torch.nn as nn
+import scipy.io as scio
 
 from python_tsp.exact import solve_tsp_dynamic_programming
 
@@ -191,8 +192,9 @@ rubbish = np.array(((0.57 / 2, 0.7 / 2), (0.40, 3.00), (2.90, 2.20), (1.10, 6.50
                     (5.20, 4.80), (7.40, 7.40), (5.30, 1.20), (7.80, 2.60), (6.00, 6.00),
                     (9.00, 4.80), (5.00, 8.50), (7.00, 1.50), (2.50, 7.50)))
 
-dis = rubbish[:, np.newaxis, :] - rubbish[np.newaxis, :, :]
-dis = np.sqrt(np.sum(dis ** 2, 2))
+data = scio.loadmat('dis/distance.mat')
+dis = data['dis']
+
 permutation, distance = solve_tsp_dynamic_programming(dis)
 points = rubbish[np.array(permutation)]
 
@@ -204,10 +206,12 @@ for i in range(len(rubbish) - 1):
         solver = Solver(points[i], points[i + 1], 3)
         opt2 = torch.optim.Adam(solver.parameters(), lr=0.5)
         ite = 0
+        Loss_list = []
         while True:
             y = solver.lpath() + 1e3 * solver.collision_fxy()
             if ite % 100 == 0:
                 print(ite, y.item(), 1e3 * solver.collision_fxy().item())
+            Loss_list.append(y.item())
             opt2.zero_grad()
             y.backward()
             opt2.step()
@@ -217,6 +221,11 @@ for i in range(len(rubbish) - 1):
             if ite > 2501 and solver.collision_fxy().item() == 0:
                 break
         pp = solver.path.detach().numpy()
+        x00 = range(0, len(Loss_list))
+        plt.plot(x00, Loss_list)
+        plt.xlabel('step')
+        plt.ylabel('loss')
+        plt.savefig("loss"+str(i)+".jpg")
     else:
         pp = o_solver.path.detach().numpy()
 
@@ -225,10 +234,12 @@ for i in range(len(rubbish) - 1):
 path = np.concatenate([path, points[-1][np.newaxis, :]])
 
 all_path = theta_adjust(path)
+delta_path = all_path[1:]-all_path[0:-1]
+print(all_path)
 print(all_path.shape)
 im = visualize(all_path)
 
-all_dis = np.sum(all_path ** 2, 1)
+all_dis = np.sum(delta_path ** 2, 1)
 all_dis = np.sqrt(all_dis)
 all_dis = np.sum(all_dis)
 print(all_dis)
