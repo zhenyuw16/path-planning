@@ -26,7 +26,11 @@ pip install opencv-python
 
 ## Usage
 
-After pytorch and OpenCV are installed, *solver.py* is able to be used directly.
+Run *solver.py* directly to use the program.
+
+```
+python solver.py
+```
 
 ### Define variables and Functions
 
