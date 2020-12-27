@@ -95,7 +95,7 @@ print(all_dis)
 
 The final result is shown in the following figure.
 
-![result](https://github.com/zhenyuw16/path-planning/blob/main/result.png)
+![image](https://github.com/zhenyuw16/path-planning/blob/main/result.png)
 
 ## Contributing
 
