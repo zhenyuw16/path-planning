@@ -15,7 +15,7 @@ The program is based on the competition in convex optimization (Fall 2020) class
 
 ## Install
 
-This module depends upon pytorch and OpenCV, which should be installed before running the program.
+This module depends upon pytorch, OpenCV and matlab global optimization toolbox, which should be installed before running the program.
 
 ```
 pip install torch
@@ -25,6 +25,8 @@ pip install opencv-python
 
 
 ## Usage
+
+Run *dis/solver.m* to get *dis/distance.mat* which is used in *solver.py*.
 
 Run *solver.py* directly to use the program.
 
