@@ -11,7 +11,7 @@
 
 ## Background
 
-The program is based on the competition in convex optimization (Fall 2020) class, which requires a shortest path for a cleaning vehicle covering all rubbishes and avoiding all polygons given. In addition, sampling waypoints should be less than 100 and the turning angle of the vehicle should not be larger than ![](https://latex.codecogs.com/gif.latex?\dpi{400}\alpha&space;+&space;\frac{2\beta}{\gamma})
+The program is based on the competition in convex optimization (Fall 2020) class, which requires a shortest path for a cleaning vehicle covering all rubbishes and avoiding all polygons given. In addition, sampling waypoints should be less than 100 and the turning angle of the vehicle should not be larger than ![1](http://latex.codecogs.com/svg.latex?\int_a^bf(x)\ dx)
 
 ## Install
 
